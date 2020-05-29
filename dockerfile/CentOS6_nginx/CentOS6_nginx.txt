@@ -1,0 +1,22 @@
+# 设置基础镜像
+FROM centos6-base
+# 维护该镜像的用户
+MAINTAINER this is nginx image <dc>
+# 安装环境 下载软件包 并解压
+RUN yum install -y wget proc-devel net-tools gcc zlib zlib-devel make openssl-devel pcre* gcc-c++ automake autoconf libtool openssl
+RUN wget http://nginx.org/download/nginx-1.17.4.tar.gz
+RUN tar zxvf nginx-1.17.4.tar.gz
+# 工作目录 编译安装
+WORKDIR nginx-1.17.4
+RUN ./configure --prefix=/usr/local/nginx && make && make install
+# 开启 80 和443端口
+EXPOSE 80
+EXPOSE 443
+# 修改配置文件，以非 deamon方式启动
+RUN echo "daemon off;">>/usr/local/nginx/conf/nginx.conf
+# 复制服务脚本并设置权限
+WORKDIR /root/nginx
+ADD run.sh /run.sh
+RUN chmod 755 /run.sh
+# 启动容器时执行脚本
+CMD ["/run.sh"]
