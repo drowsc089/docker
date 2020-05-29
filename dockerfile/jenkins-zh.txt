@@ -1,0 +1,32 @@
+FROM jenkins/jenkins:lts
+LABEL maintainer="drowsc@gmail.com"
+USER root
+#替换jenkins更新中心和插件下载源
+ENV JENKINS_UC https://updates.jenkins-zh.cn
+ENV JENKINS_UC_DOWNLOAD https://mirrors.tuna.tsinghua.edu.cn/jenkins
+ 
+ENV JENKINS_OPTS="-Dhudson.model.UpdateCenter.updateCenterUrl=https://updates.jenkins-zh.cn/update-center.json"
+#关闭安装引导
+ENV JENKINS_OPTS="-Djenkins.install.runSetupWizard=false"
+ 
+#替换jenkins初始化脚本,内含重新设置证书目录
+COPY init.groovy /usr/share/jenkins/ref/init.groovy.d/init.groovy
+#替换jenkins更新中心地址,即插件选项里的高级选项设置
+COPY hudson.model.UpdateCenter.xml /usr/share/jenkins/ref/hudson.model.UpdateCenter.xml
+#替换SSL证书以便使用新的插件下载镜像源
+COPY mirror-adapter.crt /usr/share/jenkins/ref/mirror-adapter.crt
+ 
+#替换系统的软件下载源为阿里云镜像源
+RUN echo '' > /etc/apt/sources.list.d/jessie-backports.list \
+  && echo "deb http://mirrors.aliyun.com/debian jessie main contrib non-free" > /etc/apt/sources.list \
+  && echo "deb http://mirrors.aliyun.com/debian jessie-updates main contrib non-free" >> /etc/apt/sources.list \
+  && echo "deb http://mirrors.aliyun.com/debian-security jessie/updates main contrib non-free" >> /etc/apt/sources.list
+#执行系统软件版本升级
+RUN apt-get update
+#调整系统时区
+RUN echo "Asia/Shanghai" > /etc/timezone
+ 
+#新增docker用户组并修改组id,之后把用户jenkins添加为docker组成员,容器启动默认使用jenkins用户建立服务进程,要使用docker工具则必须在同一个用户组下
+ARG dockerGid=999
+RUN echo "docker:x:${dockerGid}:jenkins" >> /etc/group
+USER jenkins
